@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* ----- CSS Variables ----- */
+        :root {
+            --black: #000000;
+            --white: #ffffff;
+            --paddle-height: 12;
+            --ball-left-boundary: 8;
+            
+            /* Custom properties for animation */
+            --ping-position: 10;
+            --int-ball-position-x: 10;
+            --ball-position-y: 0;
+            --ball-position-x: 0;
+            --min-ball-position-y-and-top-of-paddle: 0;
+            --min-ball-position-y-and-bottom-of-paddle: 0;
+            --lives: '3';
+            
+            /* Animation control */
+            --lives-decrement: paused;
+            
+            animation: ping 1s forwards;
+            animation-timeline: --myScroller;
+            timeline-scope: --myScroller;
+        }
+        
+        /* Register custom properties */
+        @property --ping-position {
+            syntax: "<number>";
+            inherits: true;
+            initial-value: 10;
+        }
+        
+        @property --int-ball-position-x {
+            syntax: "<number>";
+            inherits: true;
+            initial-value: 10;
+        }
+        
+        @property --ball-position-y {
+            syntax: "<number>";
+            inherits: true;
+            initial-value: 0;
+        }
+        
+        @property --ball-position-x {
+            syntax: "<number>";
+            inherits: true;
+            initial-value: 0;
+        }
+        
+        @property --min-ball-position-y-and-top-of-paddle {
+            syntax: "<number>";
+            inherits: true;
+            initial-value: 0;
+        }
+        
+        @property --min-ball-position-y-and-bottom-of-paddle {
+            syntax: "<number>";
+            inherits: true;
+            initial-value: 0;
+        }
+        
+        @property --lives {
+            syntax: "<string>";
+            inherits: true;
+            initial-value: '3';
+        }
+        
+        /* ----- General Styles ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            height: 100vh;
+            background: var(--black);
+            animation: ball 8s infinite linear, lives 80ms forwards steps(4) var(--lives-decrement);
+            
+            /* Calculate derived properties */
+            --int-ball-position-x: round(down, var(--ball-position-x));
+            --min-ball-position-y-and-top-of-paddle: min(var(--ball-position-y) + 5, var(--ping-position));
+            --min-ball-position-y-and-bottom-of-paddle: min(var(--ball-position-y), var(--ping-position) + var(--paddle-height));
+        }
+        
+        .screen {
+            display: flex;
+            height: 100%;
+            animation: lives 80ms forwards steps(4) var(--lives-decrement);
+        }
+        
+        .game-over {
+            margin: auto auto;
+            justify-content: center;
+            color: var(--white);
+            font-family: "Press Start 2P", system-ui;
+            font-weight: 400;
+            text-transform: uppercase;
+            display: none;
+            flex-flow: column;
+            justify-content: space-around;
+            height: 130px;
+        }
+        
+        .game-over div {
+            align-self: center;
+        }
+        
+        .field {
+            margin: auto auto;
+            width: 200px;
+            height: 130px;
+            position: relative;
+            border-width: 3px;
+            border-style: solid;
+            border-color: var(--white);
+            animation-play-state: paused;
+        }
+        
+        .field .lives {
+            font-family: "Press Start 2P", system-ui;
+            font-weight: 400;
+            font-style: normal;
+            color: var(--white);
+            font-size: 0.6em;
+            text-transform: uppercase;
+            justify-self: center;
+            margin-top: -15px;
+            text-align: center;
+        }
+        
+        .field .lives::after {
+            content: var(--lives);
+        }
+        
+        .field .net {
+            width: 0;
+            height: 95%;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 3px;
+            border-style: dotted;
+            border-color: var(--white);
+        }
+        
+        .field .ping, .field .pong {
+            width: 4px;
+            height: calc(var(--paddle-height) * 1%);
+            position: absolute;
+            background: var(--white);
+        }
+        
+        .field .ping {
+            left: 6%;
+            top: calc(var(--ping-position) * 1%);
+        }
+        
+        .field .pong {
+            right: 6%;
+            animation: pong 8s infinite linear;
+        }
+        
+        .field .ball {
+            width: 5px;
+            height: 5px;
+            position: absolute;
+            background: var(--white);
+            top: calc(var(--ball-position-y) * 1%);
+            left: calc(var(--ball-position-x) * 1%);
+        }
+        
+        /* ----- Container Queries for Game Logic ----- */
+        @container style(--int-ball-position-x: var(--ball-left-boundary)) {
+            .screen {
+                --lives-decrement: running;
+            }
+            
+            .screen .field {
+                background: red;
+            }
+        }
+        
+        @container style(--min-ball-position-y-and-top-of-paddle: var(--ping-position)) and style(--min-ball-position-y-and-bottom-of-paddle: var(--ball-position-y)) and style(--int-ball-position-x: var(--ball-left-boundary)) {
+            .screen {
+                --lives-decrement: paused;
+            }
+            
+            .screen .field {
+                background: green;
+            }
+        }
+        
+        @container style(--lives: '0') {
+            .field {
+                display: none;
+            }
+            
+            .game-over {
+                display: flex;
+            }
+        }
+        
+        /* Reset button styles */
+        .reset {
+            color: var(--white);
+            text-decoration: none;
+            margin-top: 15px;
+            display: inline-block;
+            padding: 5px 10px;
+            border: 1px solid var(--white);
+            transition: all 0.3s;
+        }
+        
+        .reset:hover {
+            background: var(--white);
+            color: var(--black);
+        }
+        
+        :root:has(.reset:active) *, :root:has(.reset:active) {
+            animation-name: none;
+        }
+        
+        /* ----- Keyframes Animations ----- */
+        @keyframes ball {
+            0% { /* start in the middle */
+                --ball-position-y: 34;
+                --ball-position-x: 52;
+            }
+            8.3% { /* pong */
+                --ball-position-y: 52;
+                --ball-position-x: 90;
+            }
+            24.9% { /* ping */
+                --ball-position-y: 85;
+                --ball-position-x: 8;
+            }
+            30% {
+                --ball-position-y: 98;
+                --ball-position-x: 27;
+            }
+            41.5% { /* pong */
+                --ball-position-y: 70;
+                --ball-position-x: 90;
+            }
+            58.1% { /* ping */
+                --ball-position-y: 55;
+                --ball-position-x: 8;
+            }
+            74.7% { /* pong */
+                --ball-position-y: 13;
+                --ball-position-x: 90;
+            }
+            79% {
+                --ball-position-y: 1;
+                --ball-position-x: 70;
+            }
+            91.3% { /* ping */
+                --ball-position-y: 22;
+                --ball-position-x: 8;
+            }
+            100% { /* back to center */
+                --ball-position-y: 34;
+                --ball-position-x: 52;
+            }
+        }
+        
+        @keyframes ping { /* left player */
+            0% {
+                --ping-position: 90;
+            }
+            100% {
+                --ping-position: 15;
+            }
+        }
+        
+        @keyframes pong { /* right player */
+            0% {
+                top: 90%;
+            }
+            8.3% { /* tap */
+                top: 51%;
+            }
+            20% {
+                top: 60%;
+            }
+            25% {
+                top: 34%;
+            }
+            41.5% { /* tap */
+                top: 68%;
+            }
+            46% {
+                top: 36%;
+            }
+            52% {
+                top: 18%;
+            }
+            58.1% {
+                top: 53%;
+            }
+            66% {
+                top: 14%;
+            }
+            70% {
+                top: 20%;
+            }
+            74.7% {
+                top: 10%;
+            }
+            91.3% { /* tap */
+                top: 10%;
+            }
+            100% {
+                top: 90%;
+            }
+        }
+        
+        @keyframes lives {
+            0% {
+                --lives: "3";
+            }
+            25% {
+                --lives: "2";
+            }
+            75% {
+                --lives: "1";
+            }
+            100% {
+                --lives: "0";
+            }
+        }
+        
+        /* ----- Range Input Styles ----- */
+        input[type="range"] {
+            overflow: hidden;
+            writing-mode: vertical-lr;
+            margin-left: -30px;
+            z-index: 99;
+            position: absolute;
+            height: 130px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            view-timeline: var(--timeline) inline;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            view-timeline: var(--timeline) inline;
+        }
+        
+        /* Game instructions */
+        .instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: var(--white);
+            font-family: "Press Start 2P", system-ui;
+            font-size: 0.6em;
+            line-height: 1.5;
+            max-width: 300px;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .instructions {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin: 20px auto;
+                text-align: center;
+                max-width: 90%;
+            }
+            
+            .screen {
+                flex-direction: column;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h3>PONG GAME</h3>
+        <p>Use the slider to control the left paddle</p>
+        <p>Right paddle moves automatically</p>
+        <p>Red = Lost a life</p>
+        <p>Green = Successful save</p>
+    </div>
+    
+    <div class="screen">
+        <div class="field">
+            <div class="lives">Lives:</div>
+            <input type="range" style="--timeline:--myScroller" value="0" min="0" max="100">
+            <div class="net"></div>
+            <div class="ping"></div>
+            <div class="pong"></div>
+            <div class="ball"></div>
+        </div>
+
+        <div class="game-over">
+            <div>Game over</div>
+            <div><a class="reset" href="#">Play again</a></div>
+        </div>
+    </div>
+    
+    <script>
+        // JavaScript untuk mereset game
+        document.querySelector('.reset').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Reset lives
+            document.documentElement.style.setProperty('--lives', '"3"');
+            
+            // Reset animations
+            const screen = document.querySelector('.screen');
+            screen.style.animation = 'none';
+            setTimeout(() => {
+                screen.style.animation = 'lives 80ms forwards steps(4) var(--lives-decrement)';
+            }, 10);
+            
+            // Hide game over screen
+            document.querySelector('.game-over').style.display = 'none';
+            
+            // Show game field
+            document.querySelector('.field').style.display = 'block';
+            
+            // Reset slider
+            document.querySelector('input[type="range"]').value = 0;
+        });
+        
+        // Update ping position based on slider value
+        const slider = document.querySelector('input[type="range"]');
+        slider.addEventListener('input', function() {
+            // Map slider value (0-100) to ping position (10-90)
+            const pingValue = 10 + (90 - 10) * (this.value / 100);
+            document.documentElement.style.setProperty('--ping-position', pingValue);
+        });
+    </script>
+</body>
+</html>
